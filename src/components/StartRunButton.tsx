@@ -1,8 +1,12 @@
-import { Alert, Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 
-export default function StartRunButton() {
+type StartRunButtonProps = {
+  onPress: () => void;
+};
+
+export default function StartRunButton({ onPress }: StartRunButtonProps) {
   const handleStartRun = () => {
-    Alert.alert("New Feature", "Run tracking coming soon!");
+    onPress();
   };
 
   return (
@@ -15,6 +19,8 @@ export default function StartRunButton() {
 const styles = StyleSheet.create({
   button: {
     backgroundColor: "#FFF",
+    borderRadius: 25,
+    padding: 20,
   },
   buttonText: {
     color: "#000000",
