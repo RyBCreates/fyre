@@ -1,10 +1,12 @@
-import { StyleSheet, Text, View } from "react-native";
+import Header from "@/components/Header";
+import StartRunButton from "@/components/StartRunButton";
+import { StyleSheet, View } from "react-native";
 
 export default function Index() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Hello Fyre Friends</Text>
-      <Text style={styles.subtitle}>Find Your Next Run</Text>
+      <Header />
+      <StartRunButton />
     </View>
   );
 }
@@ -15,15 +17,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  title: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "bold",
-  },
-  subtitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    marginTop: 12,
   },
 });
