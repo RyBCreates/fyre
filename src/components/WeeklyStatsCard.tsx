@@ -12,10 +12,7 @@ export default function WeeklyStatsCard({
     <View style={styles.container}>
       <Text style={styles.heading}>This Week</Text>
       <Text style={styles.distance}>{miles} miles</Text>
-      <View style={styles.informationContainer}>
-        <Text style={styles.description}>Total Runs</Text>
-        <Text style={styles.totalRuns}>{totalRuns}</Text>
-      </View>
+      <Text style={styles.description}>{totalRuns} runs this week</Text>
     </View>
   );
 }
@@ -40,14 +37,5 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "bold",
   },
-  informationContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-  },
   description: { fontSize: 14, color: "gray" },
-
-  totalRuns: {
-    fontWeight: "bold",
-  },
 });
