@@ -27,6 +27,10 @@ export default function Index() {
     router.push("/stopwatch");
   };
 
+  const handleSettingsPress = () => {
+    router.push("/settings");
+  };
+
   const handleCompleteRun = async () => {
     if (isSavingRef.current) {
       return;
@@ -152,7 +156,7 @@ export default function Index() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
       >
-        <Header />
+        <Header onSettingsPress={handleSettingsPress} />
         <StatsCard
           title="All Time Distance"
           value={value}

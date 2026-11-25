@@ -1,10 +1,17 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-export default function Header() {
+type HeaderProps = {
+  onSettingsPress: () => void;
+};
+
+export default function Header({ onSettingsPress }: HeaderProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Hello Fyre Friends</Text>
       <Text style={styles.subtitle}>Find Your Next Run</Text>
+      <Pressable onPress={onSettingsPress}>
+        <Text>Settings</Text>
+      </Pressable>
     </View>
   );
 }
