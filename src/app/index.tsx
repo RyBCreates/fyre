@@ -1,13 +1,15 @@
 import ActivityCard from "@/components/ActivityCard";
 import Header from "@/components/Header";
+import RunEventCard from "@/components/RunEventCard";
 import SearchBar from "@/components/SearchBar";
 import StartRunButton from "@/components/StartRunButton";
 import StatsCard from "@/components/StatsCard";
 import type { Activity } from "@/types/Activity";
+import type { RunEvent } from "@/types/RunEvent";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
@@ -17,7 +19,10 @@ export default function Index() {
 
   const [miles, setMiles] = useState(0);
   const [totalRuns, setTotalRuns] = useState(0);
+
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [runevents, setRunEvents] = useState<RunEvent[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
@@ -32,6 +37,10 @@ export default function Index() {
 
   const handleSettingsPress = () => {
     router.push("/settings");
+  };
+
+  const handleHostRunPress = () => {
+    router.push("/host-run");
   };
 
   const handleCompleteRun = async () => {
@@ -73,6 +82,7 @@ export default function Index() {
       isSavingRef.current = false;
     }
   };
+
   useFocusEffect(
     useCallback(() => {
       const loadUserInfo = async () => {
@@ -82,11 +92,27 @@ export default function Index() {
           const savedMiles = await AsyncStorage.getItem("fyreMiles");
           const savedTotalRuns = await AsyncStorage.getItem("fyreTotalRuns");
           const savedActivities = await AsyncStorage.getItem("fyreActivities");
+          const savedRunEvents = await AsyncStorage.getItem("fyreRunEvents");
 
           console.log("Saved Miles:", savedMiles);
           console.log("Saved Total Runs:", savedTotalRuns);
           console.log("Saved Activities:", savedActivities);
 
+          if (savedRunEvents !== null) {
+            try {
+              const parsedEvents = savedRunEvents
+                ? JSON.parse(savedRunEvents)
+                : [];
+              const existingEvents: RunEvent[] = Array.isArray(parsedEvents)
+                ? parsedEvents
+                : [];
+              setRunEvents(existingEvents);
+            } catch (error) {
+              console.error("Invalid Saved Events", error);
+              setRunEvents([]);
+              setLoadError(true);
+            }
+          }
           if (savedUserData !== null) {
             try {
               const parsedUserData = JSON.parse(savedUserData);
@@ -134,7 +160,6 @@ export default function Index() {
                 const parsedActivities = JSON.parse(savedActivities);
                 if (Array.isArray(parsedActivities)) {
                   setActivities(parsedActivities);
-                  // console.log("Length of Array:", parsedActivities.length);
                 }
               } catch (error) {
                 console.error("Invalid legacy activity data:", error);
@@ -161,6 +186,12 @@ export default function Index() {
       >
         <Header onSettingsPress={handleSettingsPress} />
         <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+
+        {!isLoading &&
+          runevents.length > 0 &&
+          runevents.map((event) => (
+            <RunEventCard key={event.id} event={event} />
+          ))}
         <StatsCard
           title="All Time Distance"
           value={value}
@@ -182,7 +213,14 @@ export default function Index() {
         )}
       </ScrollView>
 
-      {!isLoading && !loadError && <StartRunButton onPress={handleStartRun} />}
+      {!isLoading && !loadError && (
+        <View style={styles.buttonContainer}>
+          <StartRunButton onPress={handleStartRun} />
+          <Pressable style={styles.hostButton} onPress={handleHostRunPress}>
+            <Text style={styles.hostButtonText}>Host a Run</Text>
+          </Pressable>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -198,7 +236,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    width: "100%",
   },
   scrollContent: {
     gap: 24,
@@ -208,5 +245,16 @@ const styles = StyleSheet.create({
   noActivities: {
     paddingHorizontal: 20,
     textAlign: "center",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+  },
+  hostButton: { backgroundColor: "#FFF", borderRadius: 25, padding: 20 },
+  hostButtonText: {
+    color: "#000000",
+    fontSize: 28,
+    fontWeight: "bold",
   },
 });

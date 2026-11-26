@@ -15,6 +15,7 @@ export default function SearchBar({
       <TextInput
         style={styles.searchBar}
         placeholder="Search for nearby runs..."
+        placeholderTextColor="#666666"
         value={searchQuery}
         onChangeText={setSearchQuery}
       />

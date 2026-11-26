@@ -9,9 +9,10 @@ export default function ActivityCard({ activity }: ActivityCardProps) {
   const formattedDate = new Date(activity.completedAt).toLocaleDateString();
   const upperCaseActivity = activity.type.charAt(0).toUpperCase();
   const activityType = upperCaseActivity + activity.type.slice(1);
-  const formattedDuration = activity.durationMilliseconds !== undefined
-    ? Math.floor(activity.durationMilliseconds / 1000)
-    : undefined;
+  const formattedDuration =
+    activity.durationMilliseconds !== undefined
+      ? Math.floor(activity.durationMilliseconds / 1000)
+      : undefined;
   return (
     <View style={styles.container}>
       <View style={styles.activityInfo}>
@@ -20,7 +21,9 @@ export default function ActivityCard({ activity }: ActivityCardProps) {
       </View>
       <View style={[styles.activityInfo, styles.rightAligned]}>
         <Text style={styles.distanceNumber}>{activity.distanceMiles} mi</Text>
-        {formattedDuration !== undefined && <Text>{formattedDuration} sec</Text>}
+        {formattedDuration !== undefined && (
+          <Text>{formattedDuration} sec</Text>
+        )}
       </View>
     </View>
   );
