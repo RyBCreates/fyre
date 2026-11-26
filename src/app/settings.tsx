@@ -30,6 +30,9 @@ export default function Settings() {
   return (
     <SafeAreaView style={styles.container}>
       <Text>Settings</Text>
+      <Pressable>
+        <Text>Preferences</Text>
+      </Pressable>
       <Pressable onPress={handleDeleteProfile}>
         <Text>Delete Profile</Text>
       </Pressable>

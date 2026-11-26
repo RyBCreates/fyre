@@ -1,5 +1,6 @@
 import ActivityCard from "@/components/ActivityCard";
 import Header from "@/components/Header";
+import SearchBar from "@/components/SearchBar";
 import StartRunButton from "@/components/StartRunButton";
 import StatsCard from "@/components/StatsCard";
 import type { Activity } from "@/types/Activity";
@@ -11,6 +12,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
   const router = useRouter();
+
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [miles, setMiles] = useState(0);
   const [totalRuns, setTotalRuns] = useState(0);
@@ -157,6 +160,7 @@ export default function Index() {
         contentContainerStyle={styles.scrollContent}
       >
         <Header onSettingsPress={handleSettingsPress} />
+        <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
         <StatsCard
           title="All Time Distance"
           value={value}
@@ -172,7 +176,9 @@ export default function Index() {
               <ActivityCard key={activity.id} activity={activity} />
             ))}
         {!isLoading && !loadError && activities.length === 0 && (
-          <Text>No Activities Yet, Your first run starts here!</Text>
+          <Text style={styles.noActivities}>
+            No Activities Yet, Your first run will show up here!
+          </Text>
         )}
       </ScrollView>
 
@@ -197,5 +203,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     gap: 24,
     paddingBottom: 20,
+    alignItems: "center",
+  },
+  noActivities: {
+    paddingHorizontal: 20,
+    textAlign: "center",
   },
 });
