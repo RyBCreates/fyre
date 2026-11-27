@@ -4,9 +4,15 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type RunEventCardProps = {
   event: RunEvent;
+  isJoined: boolean;
+  onJoinPress: () => void;
 };
 
-export default function RunEventCard({ event }: RunEventCardProps) {
+export default function RunEventCard({
+  event,
+  isJoined,
+  onJoinPress,
+}: RunEventCardProps) {
   const startDate = new Date(event.startsAt);
   const formattedDate = startDate.toLocaleDateString();
   const formattedTime = startDate.toLocaleTimeString("en-US", {
@@ -61,8 +67,10 @@ export default function RunEventCard({ event }: RunEventCardProps) {
             <Text>{event.distanceMiles} miles</Text>
           </View>
         </View>
-        <Pressable style={styles.joinButton}>
-          <Text style={styles.joinButtonText}>Join This Run</Text>
+        <Pressable style={styles.joinButton} onPress={onJoinPress}>
+          <Text style={styles.joinButtonText}>
+            {isJoined ? "Leave Run" : "Join This Run"}
+          </Text>
         </Pressable>
       </View>
     </View>

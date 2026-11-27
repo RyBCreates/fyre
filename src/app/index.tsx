@@ -23,6 +23,8 @@ export default function Index() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [runevents, setRunEvents] = useState<RunEvent[]>([]);
 
+  const [joinedEventIds, setJoinedEventIds] = useState<string[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
@@ -30,6 +32,25 @@ export default function Index() {
 
   const value = `${miles} miles`;
   const detailValue = String(totalRuns);
+
+  const handleToggleJoin = async (eventId: string) => {
+    try {
+      let updatedEventIds: string[];
+      if (joinedEventIds.includes(eventId)) {
+        updatedEventIds = joinedEventIds.filter((id) => id !== eventId);
+      } else {
+        updatedEventIds = [...joinedEventIds, eventId];
+      }
+
+      await AsyncStorage.setItem(
+        "fyreJoinedEventIds",
+        JSON.stringify(updatedEventIds),
+      );
+      setJoinedEventIds(updatedEventIds);
+    } catch (error) {
+      console.error("An error occured updating the joined Events", error);
+    }
+  };
 
   const handleStartRun = () => {
     router.push("/stopwatch");
@@ -93,10 +114,27 @@ export default function Index() {
           const savedTotalRuns = await AsyncStorage.getItem("fyreTotalRuns");
           const savedActivities = await AsyncStorage.getItem("fyreActivities");
           const savedRunEvents = await AsyncStorage.getItem("fyreRunEvents");
+          const savedJoinedEventIds =
+            await AsyncStorage.getItem("fyreJoinedEventIds");
 
-          console.log("Saved Miles:", savedMiles);
-          console.log("Saved Total Runs:", savedTotalRuns);
-          console.log("Saved Activities:", savedActivities);
+          if (savedJoinedEventIds !== null) {
+            try {
+              const parsedJoinedEventIds = savedJoinedEventIds
+                ? JSON.parse(savedJoinedEventIds)
+                : [];
+              const existingJoinedEventIds = Array.isArray(parsedJoinedEventIds)
+                ? parsedJoinedEventIds
+                : [];
+              setJoinedEventIds(existingJoinedEventIds);
+            } catch (error) {
+              console.error(
+                "There was an error loading your joined events",
+                error,
+              );
+              setJoinedEventIds([]);
+              setLoadError(true);
+            }
+          }
 
           if (savedRunEvents !== null) {
             try {
@@ -113,6 +151,7 @@ export default function Index() {
               setLoadError(true);
             }
           }
+
           if (savedUserData !== null) {
             try {
               const parsedUserData = JSON.parse(savedUserData);
@@ -190,7 +229,12 @@ export default function Index() {
         {!isLoading &&
           runevents.length > 0 &&
           runevents.map((event) => (
-            <RunEventCard key={event.id} event={event} />
+            <RunEventCard
+              key={event.id}
+              event={event}
+              isJoined={joinedEventIds.includes(event.id)}
+              onJoinPress={() => handleToggleJoin(event.id)}
+            />
           ))}
         <StatsCard
           title="All Time Distance"
