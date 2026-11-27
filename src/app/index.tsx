@@ -4,6 +4,7 @@ import RunEventCard from "@/components/RunEventCard";
 import SearchBar from "@/components/SearchBar";
 import StartRunButton from "@/components/StartRunButton";
 import StatsCard from "@/components/StatsCard";
+import { BASE_URL } from "@/config/api";
 import type { Activity } from "@/types/Activity";
 import type { RunEvent } from "@/types/RunEvent";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -113,7 +114,6 @@ export default function Index() {
           const savedMiles = await AsyncStorage.getItem("fyreMiles");
           const savedTotalRuns = await AsyncStorage.getItem("fyreTotalRuns");
           const savedActivities = await AsyncStorage.getItem("fyreActivities");
-          const savedRunEvents = await AsyncStorage.getItem("fyreRunEvents");
           const savedJoinedEventIds =
             await AsyncStorage.getItem("fyreJoinedEventIds");
 
@@ -136,20 +136,23 @@ export default function Index() {
             }
           }
 
-          if (savedRunEvents !== null) {
-            try {
-              const parsedEvents = savedRunEvents
-                ? JSON.parse(savedRunEvents)
-                : [];
-              const existingEvents: RunEvent[] = Array.isArray(parsedEvents)
-                ? parsedEvents
-                : [];
-              setRunEvents(existingEvents);
-            } catch (error) {
-              console.error("Invalid Saved Events", error);
-              setRunEvents([]);
-              setLoadError(true);
+          try {
+            const response = await fetch(`${BASE_URL}/runs`);
+
+            if (!response.ok) {
+              throw new Error(`Failed to fetch runs: ${response.status}`);
             }
+            const fetchedRuns: unknown = await response.json();
+
+            if (Array.isArray(fetchedRuns)) {
+              setRunEvents(fetchedRuns);
+            } else {
+              throw new Error("Expected an array of running events");
+            }
+            
+          } catch (error) {
+            console.error("Failed to load run events", error);
+            setLoadError(true);
           }
 
           if (savedUserData !== null) {

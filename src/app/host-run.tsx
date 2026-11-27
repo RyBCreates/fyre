@@ -1,8 +1,8 @@
+import { BASE_URL } from "@/config/api";
 import type { RunEvent } from "@/types/RunEvent";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -25,7 +25,13 @@ export default function HostRun() {
   >("beginner");
   const [runStartsAt, setRunStartsAt] = useState(new Date());
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+
   const handleSubmitForm = async () => {
+    if (isSubmittingRef.current) {
+      return;
+    }
     const distance = Number(runDistance);
     if (runTitle.trim() === "") {
       Alert.alert("Missing Title", "Please enter a run title.");
@@ -50,8 +56,7 @@ export default function HostRun() {
       return;
     }
 
-    const newRunEvent: RunEvent = {
-      id: String(Date.now()),
+    const newRunEvent: Omit<RunEvent, "id"> = {
       title: runTitle.trim(),
       startLocation: runStartLocation.trim(),
       distanceMiles: distance,
@@ -60,19 +65,25 @@ export default function HostRun() {
     };
 
     try {
-      const savedEvents = await AsyncStorage.getItem("fyreRunEvents");
-      const parsedEvents = savedEvents ? JSON.parse(savedEvents) : [];
-      const existingEvents: RunEvent[] = Array.isArray(parsedEvents)
-        ? parsedEvents
-        : [];
-      const updatedEvents = [...existingEvents, newRunEvent];
-      await AsyncStorage.setItem(
-        "fyreRunEvents",
-        JSON.stringify(updatedEvents),
-      );
+      isSubmittingRef.current = true;
+      setIsSubmitting(true);
+      const response = await fetch(`${BASE_URL}/runs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newRunEvent),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to save event: ${response.status}`);
+      }
       router.back();
     } catch (error) {
-      console.error("An error occured submitting the form", error);
+      Alert.alert("Request Failed", "Something went wrong");
+      console.error("There was an issue saving the event", error);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -179,8 +190,14 @@ export default function HostRun() {
             }}
           ></DateTimePicker>
         </View>
-        <Pressable style={styles.submitButton} onPress={handleSubmitForm}>
-          <Text style={styles.submitButtonText}>Create Event</Text>
+        <Pressable
+          style={styles.submitButton}
+          onPress={handleSubmitForm}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.submitButtonText}>
+            {isSubmitting ? "Creating" : "Create Event"}
+          </Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

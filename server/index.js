@@ -11,6 +11,17 @@ const pool = new Pool({
 
 app.use(express.json());
 
+const formatRun = (row) => {
+  return {
+    id: row.id,
+    title: row.title,
+    startLocation: row.start_location,
+    distanceMiles: Number(row.distance_miles),
+    difficulty: row.difficulty,
+    startsAt: row.starts_at.toISOString(),
+  };
+};
+
 app.get("/health", (req, res) => {
   res.json({ status: "ok", app: "fyre" });
 });
@@ -18,14 +29,7 @@ app.get("/health", (req, res) => {
 app.get("/runs", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM run_events");
-    const formattedRuns = result.rows.map((run) => ({
-      id: run.id,
-      title: run.title,
-      startLocation: run.start_location,
-      distanceMiles: Number(run.distance_miles),
-      difficulty: run.difficulty,
-      startsAt: run.starts_at.toISOString(),
-    }));
+    const formattedRuns = result.rows.map(formatRun);
     res.json(formattedRuns);
   } catch (error) {
     console.error(
@@ -113,14 +117,7 @@ app.post("/runs", async (req, res) => {
       ],
     );
     const savedRow = result.rows[0];
-    const createdRun = {
-      id: savedRow.id,
-      title: savedRow.title,
-      startLocation: savedRow.start_location,
-      distanceMiles: Number(savedRow.distance_miles),
-      difficulty: savedRow.difficulty,
-      startsAt: savedRow.starts_at.toISOString(),
-    };
+    const createdRun = formatRun(savedRow);
     res.status(201).json(createdRun);
   } catch (error) {
     console.error("Error posting run to Database", error);
