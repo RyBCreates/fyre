@@ -27,6 +27,9 @@ export default function Index() {
 
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [hasMoreRuns, setHasMoreRuns] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   const [miles, setMiles] = useState(0);
   const [totalRuns, setTotalRuns] = useState(0);
 
@@ -40,6 +43,7 @@ export default function Index() {
 
   const isSavingRef = useRef(false);
   const pendingJoinRequestsRef = useRef<Set<string>>(new Set());
+  const isLoadingMoreRef = useRef(false);
 
   const value = `${miles} miles`;
   const detailValue = String(totalRuns);
@@ -176,9 +180,37 @@ export default function Index() {
       throw new Error("Expected an array of running events");
     }
     setRunEvents(fetchedRuns);
+    setHasMoreRuns(fetchedRuns.length === 10);
     setRunsNeedRefresh(false);
-    setLoadError(false);
   }, []);
+
+  const handleLoadMore = async () => {
+    if (isLoadingMoreRef.current || runsNeedRefresh || !hasMoreRuns) {
+      return;
+    }
+    try {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+      const offset = runevents.length;
+      const response = await fetch(`${BASE_URL}/runs?offset=${offset}`);
+      if (!response.ok) {
+        throw new Error("Error Loading more Run Events");
+      }
+      const fetchedMoreRuns: unknown = await response.json();
+
+      if (!Array.isArray(fetchedMoreRuns)) {
+        throw new Error("Expected an array of running events");
+      }
+
+      setRunEvents((previous) => [...previous, ...fetchedMoreRuns]);
+      setHasMoreRuns(fetchedMoreRuns.length === 10);
+    } catch (error) {
+      console.error("There was an error loading more", error);
+    } finally {
+      setIsLoadingMore(false);
+      isLoadingMoreRef.current = false;
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -194,7 +226,7 @@ export default function Index() {
             await fetchRuns();
           } catch (error) {
             console.error("Failed to load run events", error);
-            setLoadError(true);
+            setRunsNeedRefresh(true);
           }
 
           if (savedUserData !== null) {
@@ -274,10 +306,12 @@ export default function Index() {
         {runsNeedRefresh && (
           <View style={styles.refreshButtonContainer}>
             <Text style={styles.refreshButtonWarningTitle}>
-              Check Your Connection!
+              Unable to load running events
             </Text>
             <Text style={styles.refreshButtonWarningSubtitle}>
-              Some information may be outdated
+              {runevents.length === 0
+                ? "Running Events aren't available right now."
+                : "Some information may be outdated"}
             </Text>
             <Pressable style={styles.refreshButton} onPress={handleRefreshRuns}>
               <Text style={styles.refreshButtonText}>Refresh</Text>
@@ -296,6 +330,15 @@ export default function Index() {
               isRefreshRequired={runsNeedRefresh}
             />
           ))}
+        {hasMoreRuns && !isLoading && !runsNeedRefresh && (
+          <Pressable
+            style={[styles.loadMoreButton, isLoadingMore && { opacity: 0.5 }]}
+            onPress={handleLoadMore}
+            disabled={isLoadingMore}
+          >
+            <Text>{isLoadingMore ? "Loading" : "Load More Runs"}</Text>
+          </Pressable>
+        )}
         <StatsCard
           title="All Time Distance"
           value={value}
@@ -350,6 +393,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     textAlign: "center",
   },
+  loadMoreButton: { backgroundColor: "#FFF", borderRadius: 25, padding: 20 },
   buttonContainer: {
     flexDirection: "row",
     alignItems: "center",

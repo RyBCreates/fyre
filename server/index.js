@@ -31,23 +31,34 @@ app.get("/health", (req, res) => {
 app.get("/runs", async (req, res) => {
   try {
     const userId = "user-1"; //Temporary for Development
+    const offset = Number(req.query.offset ?? 0);
+
+    if (!Number.isSafeInteger(offset) || offset < 0) {
+      return res.status(400).json({
+        error: "Offset must be a non-negative integer",
+      });
+    }
     const result = await pool.query(
-      `SELECT
-    run_events.*,
-    COUNT(run_attendees.user_id) AS attendee_count,
-    EXISTS (
-        SELECT 1
-        FROM run_attendees
-        WHERE run_attendees.run_event_id = run_events.id
-        AND run_attendees.user_id = $1
-    ) AS is_joined
-FROM run_events
-LEFT JOIN run_attendees
-    ON run_events.id = run_attendees.run_event_id
-GROUP BY
-    run_events.id;
-`,
-      [userId],
+      `
+      SELECT
+            run_events.*,
+        COUNT(run_attendees.user_id) AS attendee_count,
+        EXISTS (
+            SELECT 1
+            FROM run_attendees
+            WHERE run_attendees.run_event_id = run_events.id
+            AND run_attendees.user_id = $1
+        ) AS is_joined
+        FROM run_events
+        LEFT JOIN run_attendees
+            ON run_events.id = run_attendees.run_event_id
+        WHERE starts_at > NOW()
+        GROUP BY
+            run_events.id
+        ORDER BY run_events.starts_at ASC, run_events.id ASC
+        LIMIT 10 OFFSET $2;
+    `,
+      [userId, offset],
     );
     const formattedRuns = result.rows.map(formatRun);
     res.json(formattedRuns);
