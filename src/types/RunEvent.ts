@@ -5,4 +5,6 @@ export type RunEvent = {
   startsAt: string;
   difficulty: "beginner" | "intermediate" | "advanced";
   distanceMiles: number;
+  attendeeCount: number;
+  isJoined: boolean;
 };

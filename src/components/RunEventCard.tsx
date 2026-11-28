@@ -6,13 +6,18 @@ type RunEventCardProps = {
   event: RunEvent;
   isJoined: boolean;
   onJoinPress: () => void;
+  isPending: boolean;
+  isRefreshRequired: boolean;
 };
 
 export default function RunEventCard({
   event,
   isJoined,
   onJoinPress,
+  isPending,
+  isRefreshRequired,
 }: RunEventCardProps) {
+  const cannotPress = isPending || isRefreshRequired;
   const startDate = new Date(event.startsAt);
   const formattedDate = startDate.toLocaleDateString();
   const formattedTime = startDate.toLocaleTimeString("en-US", {
@@ -67,11 +72,26 @@ export default function RunEventCard({
             <Text>{event.distanceMiles} miles</Text>
           </View>
         </View>
-        <Pressable style={styles.joinButton} onPress={onJoinPress}>
-          <Text style={styles.joinButtonText}>
-            {isJoined ? "Leave Run" : "Join This Run"}
+        <View style={styles.attendeesInfo}>
+          <Text style={styles.attendeesJoined}>
+            {event.attendeeCount} runners joined
           </Text>
-        </Pressable>
+          <Pressable
+            style={[styles.joinButton, cannotPress && { opacity: 0.5 }]}
+            onPress={onJoinPress}
+            disabled={cannotPress}
+          >
+            <Text style={styles.joinButtonText}>
+              {isPending
+                ? isJoined
+                  ? "Leaving..."
+                  : "Joining..."
+                : isJoined
+                  ? "Leave Run"
+                  : "Join Run"}
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -113,11 +133,15 @@ const styles = StyleSheet.create({
     gap: 5,
   },
 
+  attendeesInfo: { flexDirection: "row", alignItems: "center", gap: 20 },
+  attendeesJoined: {
+    marginTop: 30,
+  },
   joinButton: {
     backgroundColor: "orange",
-    width: "70%",
+    flex: 1,
     alignSelf: "center",
-    padding: 10,
+    paddingVertical: 10,
     borderRadius: 15,
     marginTop: 10,
   },

@@ -19,6 +19,8 @@ const formatRun = (row) => {
     distanceMiles: Number(row.distance_miles),
     difficulty: row.difficulty,
     startsAt: row.starts_at.toISOString(),
+    attendeeCount: Number(row.attendee_count ?? 0),
+    isJoined: row.is_joined ?? false,
   };
 };
 
@@ -28,7 +30,25 @@ app.get("/health", (req, res) => {
 
 app.get("/runs", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM run_events");
+    const userId = "user-1"; //Temporary for Development
+    const result = await pool.query(
+      `SELECT
+    run_events.*,
+    COUNT(run_attendees.user_id) AS attendee_count,
+    EXISTS (
+        SELECT 1
+        FROM run_attendees
+        WHERE run_attendees.run_event_id = run_events.id
+        AND run_attendees.user_id = $1
+    ) AS is_joined
+FROM run_events
+LEFT JOIN run_attendees
+    ON run_events.id = run_attendees.run_event_id
+GROUP BY
+    run_events.id;
+`,
+      [userId],
+    );
     const formattedRuns = result.rows.map(formatRun);
     res.json(formattedRuns);
   } catch (error) {
@@ -122,6 +142,55 @@ app.post("/runs", async (req, res) => {
   } catch (error) {
     console.error("Error posting run to Database", error);
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.post("/runs/:runId/join", async (req, res) => {
+  try {
+    const userId = "user-1"; //Temporary for development
+    const runId = req.params.runId;
+    await pool.query(
+      "INSERT INTO run_attendees (user_id, run_event_id) VALUES ($1, $2);",
+      [userId, runId],
+    );
+
+    res.status(201).json({
+      message: "Successfully joined run",
+    });
+  } catch (error) {
+    console.error("Error joining User to Run Event", error);
+    if (error.code === "23503") {
+      return res.status(404).json({
+        error: "Run event does not exist",
+      });
+    }
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error: "User has already joined this run",
+      });
+    }
+    res.status(500).json({ error: "Server Error" });
+  }
+});
+
+app.delete("/runs/:runId/join", async (req, res) => {
+  try {
+    const userId = "user-1"; //Temporary for development
+    const runId = req.params.runId;
+    const result = await pool.query(
+      "DELETE FROM run_attendees WHERE user_id = $1 AND run_event_id = $2;",
+      [userId, runId],
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        error: "You are not attending this run",
+      });
+    }
+    res.status(200).json({ message: "Successfully left run" });
+  } catch (error) {
+    console.error("Error leaving run", error);
+    res.status(500).json({ error: "Server Error" });
   }
 });
 

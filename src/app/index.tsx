@@ -10,11 +10,20 @@ import type { RunEvent } from "@/types/RunEvent";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
   const router = useRouter();
+
+  const [runsNeedRefresh, setRunsNeedRefresh] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -24,32 +33,83 @@ export default function Index() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [runevents, setRunEvents] = useState<RunEvent[]>([]);
 
-  const [joinedEventIds, setJoinedEventIds] = useState<string[]>([]);
-
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
+  const [pendingRunIds, setPendingRunIds] = useState<Set<string>>(new Set());
+
   const isSavingRef = useRef(false);
+  const pendingJoinRequestsRef = useRef<Set<string>>(new Set());
 
   const value = `${miles} miles`;
   const detailValue = String(totalRuns);
 
-  const handleToggleJoin = async (eventId: string) => {
+  const handleToggleJoin = async (event: RunEvent) => {
+    if (pendingJoinRequestsRef.current.has(event.id) || runsNeedRefresh) {
+      return;
+    }
     try {
-      let updatedEventIds: string[];
-      if (joinedEventIds.includes(eventId)) {
-        updatedEventIds = joinedEventIds.filter((id) => id !== eventId);
-      } else {
-        updatedEventIds = [...joinedEventIds, eventId];
-      }
+      pendingJoinRequestsRef.current.add(event.id);
+      setPendingRunIds((previous) => {
+        const updated = new Set(previous);
+        updated.add(event.id);
+        return updated;
+      });
+      const method = event.isJoined ? "DELETE" : "POST";
+      const response = await fetch(`${BASE_URL}/runs/${event.id}/join`, {
+        method: method,
+      });
 
-      await AsyncStorage.setItem(
-        "fyreJoinedEventIds",
-        JSON.stringify(updatedEventIds),
-      );
-      setJoinedEventIds(updatedEventIds);
+      if (!response.ok) {
+        throw new Error(`Failed to update attendance: ${response.status}`);
+      }
+      try {
+        await fetchRuns();
+      } catch (error) {
+        setRunsNeedRefresh(true);
+        console.error("Error fetching runs after update", error);
+        Alert.alert("Network Error", "Would you like to try again?", [
+          { text: "Cancel" },
+          {
+            text: "Retry",
+            onPress: async () => {
+              try {
+                await fetchRuns();
+              } catch (error) {
+                setRunsNeedRefresh(true);
+                console.error("Retry failed", error);
+
+                Alert.alert(
+                  "Still Unable to Refresh",
+                  "Your attendance may have changed, but we couldn't retrieve the latest information. Please try again when your connection is restored.",
+                );
+              }
+            },
+          },
+        ]);
+      }
     } catch (error) {
-      console.error("An error occured updating the joined Events", error);
+      console.error("Error updating attendance", error);
+      Alert.alert("An error has occurred", "Attendance not updated");
+    } finally {
+      pendingJoinRequestsRef.current.delete(event.id);
+      setPendingRunIds((previous) => {
+        const updated = new Set(previous);
+        updated.delete(event.id);
+        return updated;
+      });
+    }
+  };
+
+  const handleRefreshRuns = async () => {
+    try {
+      await fetchRuns();
+    } catch (error) {
+      console.error("Something went wrong with the refresh", error);
+      Alert.alert(
+        "Something went wrong",
+        "Please check your connection and try again",
+      );
     }
   };
 
@@ -69,7 +129,6 @@ export default function Index() {
     if (isSavingRef.current) {
       return;
     }
-
     try {
       isSavingRef.current = true;
 
@@ -105,6 +164,22 @@ export default function Index() {
     }
   };
 
+  const fetchRuns = useCallback(async () => {
+    const response = await fetch(`${BASE_URL}/runs`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch runs: ${response.status}`);
+    }
+    const fetchedRuns: unknown = await response.json();
+
+    if (!Array.isArray(fetchedRuns)) {
+      throw new Error("Expected an array of running events");
+    }
+    setRunEvents(fetchedRuns);
+    setRunsNeedRefresh(false);
+    setLoadError(false);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       const loadUserInfo = async () => {
@@ -114,42 +189,9 @@ export default function Index() {
           const savedMiles = await AsyncStorage.getItem("fyreMiles");
           const savedTotalRuns = await AsyncStorage.getItem("fyreTotalRuns");
           const savedActivities = await AsyncStorage.getItem("fyreActivities");
-          const savedJoinedEventIds =
-            await AsyncStorage.getItem("fyreJoinedEventIds");
-
-          if (savedJoinedEventIds !== null) {
-            try {
-              const parsedJoinedEventIds = savedJoinedEventIds
-                ? JSON.parse(savedJoinedEventIds)
-                : [];
-              const existingJoinedEventIds = Array.isArray(parsedJoinedEventIds)
-                ? parsedJoinedEventIds
-                : [];
-              setJoinedEventIds(existingJoinedEventIds);
-            } catch (error) {
-              console.error(
-                "There was an error loading your joined events",
-                error,
-              );
-              setJoinedEventIds([]);
-              setLoadError(true);
-            }
-          }
 
           try {
-            const response = await fetch(`${BASE_URL}/runs`);
-
-            if (!response.ok) {
-              throw new Error(`Failed to fetch runs: ${response.status}`);
-            }
-            const fetchedRuns: unknown = await response.json();
-
-            if (Array.isArray(fetchedRuns)) {
-              setRunEvents(fetchedRuns);
-            } else {
-              throw new Error("Expected an array of running events");
-            }
-            
+            await fetchRuns();
           } catch (error) {
             console.error("Failed to load run events", error);
             setLoadError(true);
@@ -217,7 +259,7 @@ export default function Index() {
         }
       };
       loadUserInfo();
-    }, []),
+    }, [fetchRuns]),
   );
 
   return (
@@ -229,14 +271,29 @@ export default function Index() {
         <Header onSettingsPress={handleSettingsPress} />
         <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
+        {runsNeedRefresh && (
+          <View style={styles.refreshButtonContainer}>
+            <Text style={styles.refreshButtonWarningTitle}>
+              Check Your Connection!
+            </Text>
+            <Text style={styles.refreshButtonWarningSubtitle}>
+              Some information may be outdated
+            </Text>
+            <Pressable style={styles.refreshButton} onPress={handleRefreshRuns}>
+              <Text style={styles.refreshButtonText}>Refresh</Text>
+            </Pressable>
+          </View>
+        )}
         {!isLoading &&
           runevents.length > 0 &&
           runevents.map((event) => (
             <RunEventCard
               key={event.id}
               event={event}
-              isJoined={joinedEventIds.includes(event.id)}
-              onJoinPress={() => handleToggleJoin(event.id)}
+              isJoined={event.isJoined}
+              onJoinPress={() => handleToggleJoin(event)}
+              isPending={pendingRunIds.has(event.id)}
+              isRefreshRequired={runsNeedRefresh}
             />
           ))}
         <StatsCard
@@ -278,7 +335,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "flex-start",
-    paddingTop: 16,
+    paddingTop: 12,
     gap: 24,
   },
   scrollView: {
@@ -303,5 +360,18 @@ const styles = StyleSheet.create({
     color: "#000000",
     fontSize: 28,
     fontWeight: "bold",
+  },
+  refreshButtonContainer: { alignItems: "center", gap: 10 },
+  refreshButtonWarningTitle: { fontSize: 24, fontWeight: "bold" },
+  refreshButtonWarningSubtitle: { fontSize: 18 },
+  refreshButton: {
+    backgroundColor: "#ffffff",
+    borderRadius: 25,
+    padding: 20,
+    width: "90%",
+  },
+  refreshButtonText: {
+    color: "#000000",
+    fontSize: 28,
   },
 });

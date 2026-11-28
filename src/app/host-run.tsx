@@ -56,7 +56,7 @@ export default function HostRun() {
       return;
     }
 
-    const newRunEvent: Omit<RunEvent, "id"> = {
+    const newRunEvent: Omit<RunEvent, "id" | "attendeeCount" | "isJoined"> = {
       title: runTitle.trim(),
       startLocation: runStartLocation.trim(),
       distanceMiles: distance,
